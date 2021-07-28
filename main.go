@@ -8,8 +8,9 @@ import (
 
 func main() {
 	bot, err := tgbotapi.NewBotAPI("1649711700:AAHEe2ck-4JF4Grk5tH7eRImAvaeAEtjZwM")
+
 	if err != nil {
-		log.Panic(err)
+		log.Printf("Error: %s", err)
 	}
 
 	bot.Debug = true
