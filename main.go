@@ -1,88 +1,36 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"net/http"
-	"strings"
+	"log"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-// Create a struct that mimics the webhook response body
-// https://core.telegram.org/bots/api#update
-type webhookReqBody struct {
-	Message struct {
-		Text string `json:"text"`
-		Chat struct {
-			ID int64 `json:"id"`
-		} `json:"chat"`
-	} `json:"message"`
-}
-
-// This handler is called everytime telegram sends us a webhook event
-func Handler(res http.ResponseWriter, req *http.Request) {
-	// First, decode the JSON response body
-	body := &webhookReqBody{}
-	if err := json.NewDecoder(req.Body).Decode(body); err != nil {
-		fmt.Println("could not decode request body", err)
-		return
-	}
-
-	// Check if the message contains the word "marco"
-	// if not, return without doing anything
-	if !strings.Contains(strings.ToLower(body.Message.Text), "marco") {
-		return
-	}
-
-	// If the text contains marco, call the `sayPolo` function, which
-	// is defined below
-	if err := sayPolo(body.Message.Chat.ID); err != nil {
-		fmt.Println("error in sending reply:", err)
-		return
-	}
-
-	// log a confirmation message if the message is sent successfully
-	fmt.Println("reply sent")
-}
-
-//The below code deals with the process of sending a response message
-// to the user
-
-// Create a struct to conform to the JSON body
-// of the send message request
-// https://core.telegram.org/bots/api#sendmessage
-type sendMessageReqBody struct {
-	ChatID int64  `json:"chat_id"`
-	Text   string `json:"text"`
-}
-
-// sayPolo takes a chatID and sends "polo" to them
-func sayPolo(chatID int64) error {
-	// Create the request body struct
-	reqBody := &sendMessageReqBody{
-		ChatID: chatID,
-		Text:   "Polo!!",
-	}
-	// Create the JSON body from the struct
-	reqBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return err
-	}
-
-	// Send a post request with your token
-	res, err := http.Post("https://api.telegram.org/bot1649711700:AAHEe2ck-4JF4Grk5tH7eRImAvaeAEtjZwM/sendMessage", "application/json", bytes.NewBuffer(reqBytes))
-	if err != nil {
-		return err
-	}
-	if res.StatusCode != http.StatusOK {
-		return errors.New("unexpected status" + res.Status)
-	}
-
-	return nil
-}
-
-// FInally, the main funtion starts our server on port 3000
 func main() {
-	http.ListenAndServe(":5000", http.HandlerFunc(Handler))
+	bot, err := tgbotapi.NewBotAPI("1649711700:AAHEe2ck-4JF4Grk5tH7eRImAvaeAEtjZwM")
+
+	if err != nil {
+		log.Printf("Error: %s", err)
+	}
+
+	bot.Debug = true
+
+	log.Printf("Authorized on account %s", bot.Self.UserName)
+
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+
+	updates, err := bot.GetUpdatesChan(u)
+
+	for update := range updates {
+		if update.Message == nil { // ignore any non-Message Updates
+			continue
+		}
+
+		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+
+		msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
+
+		bot.Send(msg)
+	}
 }
